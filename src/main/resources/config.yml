@@ -1,0 +1,26 @@
+prisma-welcome:
+  default:
+    messages:
+      join:
+        - "&f[&a+&f] &f%player%"
+      leave:
+        - "&f[&c-&f] &f%player%"
+
+  Example:
+    messages:
+      join:
+        - "&f[&a+&f] &eHello, &b%player%&e! Welcome to the server."
+        - "&f[&a+&f] &eHello, &b%player%&e! Say hi everyone!"
+      leave:
+        - "&f[&c-&f] &eGoodbye, &b%player%&e! Cya later!"
+        - "&f[&c-&f] &eBye, &b%player%&e!"
+    permission: welcome.example
+
+  hexColorExample:
+    messages:
+      join:
+        - "&f[&a+&f] &eHello, &b%player%&e! This is a &#43FBA8hex color message."
+        - "&f[&a+&f] &eHello, &b%player%&e! This is a &#E28743hex color message."
+      leave:
+        - "&f[&c-&f] &eGoodbye, &b%player%&e! This is a &#43FBA8hex color message."
+    permission: welcome.hexcolorexample

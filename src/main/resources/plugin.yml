@@ -1,0 +1,4 @@
+name: PrismaWelcome
+version: '${project.version}'
+main: me.kermx.prismawelcome.PrismaWelcome
+api-version: '1.20'
