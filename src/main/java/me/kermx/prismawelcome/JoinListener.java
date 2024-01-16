@@ -96,7 +96,7 @@ public class JoinListener implements Listener {
 
     private String getRandomMessage(List<String> messages) {
         if (messages.isEmpty()) {
-            return ""; // Handle the case when there are no messages
+            return "this should never happen"; // Handle the case when there are no messages
         }
 
         int index = random.nextInt(messages.size());
