@@ -72,7 +72,6 @@ public class JoinListener implements Listener {
 
 
     private List<String> getCustomMessages(Player player, FileConfiguration config, String messageType) {
-        Bukkit.getLogger().info("Executing getCustomMessages method");
         List<String> customMessages = new ArrayList<>();
 
         for (String key : config.getConfigurationSection("prisma-welcome").getKeys(false)) {
