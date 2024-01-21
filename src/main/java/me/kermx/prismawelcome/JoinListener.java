@@ -2,7 +2,6 @@ package me.kermx.prismawelcome;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.md_5.bungee.api.ChatColor;
-import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -74,9 +73,9 @@ public class JoinListener implements Listener {
     private List<String> getCustomMessages(Player player, FileConfiguration config, String messageType) {
         List<String> customMessages = new ArrayList<>();
 
-        for (String key : config.getConfigurationSection("prisma-welcome").getKeys(false)) {
-            String permissionNode = config.getString("prisma-welcome." + key + ".permission");
-            List<String> conditionList = config.getStringList("prisma-welcome." + key + ".placeholders");
+        for (String key : config.getConfigurationSection("customMessages").getKeys(false)) {
+            String permissionNode = config.getString("customMessages." + key + ".permission");
+            List<String> conditionList = config.getStringList("customMessages." + key + ".placeholders");
 
             // Check if permissionNode is not specified or the player has the permission
             boolean hasPermission = permissionNode == null || permissionNode.isEmpty() || player.hasPermission(permissionNode);
@@ -85,15 +84,17 @@ public class JoinListener implements Listener {
             boolean shouldIncludeMessages = hasPermission && evaluateConditions(player, conditionList);
 
             if (shouldIncludeMessages) {
-                List<String> messagesToAdd = config.getStringList("prisma-welcome." + key + ".messages." + messageType);
+                List<String> messagesToAdd = config.getStringList("customMessages." + key + ".messages." + messageType);
                 customMessages.addAll(messagesToAdd);
             }
+        }
+        if (customMessages.isEmpty()) {
+            customMessages.addAll(config.getStringList("defaultMessage.messages." + messageType));
         }
         return customMessages;
     }
 
     private boolean evaluateConditions(Player player, List<String> conditionList) {
-        Bukkit.getLogger().info("Executing evaluateConditions method");
         if (conditionList == null || conditionList.isEmpty()) {
             return true;
         }
@@ -109,15 +110,16 @@ public class JoinListener implements Listener {
                 String placeholderValue = PlaceholderAPI.setPlaceholders(player, placeholder);
                 String valueValue = PlaceholderAPI.setPlaceholders(player, value);
 
-                if (evaluateCondition(placeholderValue, operator, valueValue) || evaluateCondition(valueValue, operator, placeholderValue)) {
-                    return true;
+                if (!evaluateCondition(placeholderValue, operator, valueValue)) {
+                    return false; // If any condition is not satisfied, return false
                 }
             }
         }
-        return false;
+        return true; // All conditions are satisfied
     }
 
     private boolean evaluateCondition(String placeholder, String operator, String value) {
+
         switch (operator) {
             case "==":
                 return placeholder.equals(value);
@@ -151,7 +153,7 @@ public class JoinListener implements Listener {
 
     private String getRandomMessage(List<String> messages) {
         if (messages.isEmpty()) {
-            return "this should never happen";
+            return ChatColor.RED + "Join Message Error!";
         }
         int index = random.nextInt(messages.size());
         return messages.get(index);

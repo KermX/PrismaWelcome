@@ -1,16 +1,18 @@
-prisma-welcome:
-# The default join/leave messages have no permission requirements or placeholder conditions (You can rename this option)
-  default:
-    messages:
-      join:
-        - "&f[&a+&f] &f%player_name%"
-      leave:
-        - "&f[&c-&f] &f%player_name%"
-    permission: ""
-    placeholders: []
+# DO NOT RENAME defaultMessage!
+# This is the message that will be used if the player has no other join/leave messages available to them
+defaultMessage:
+  messages:
+    join:
+      - "&f[&a+&f] &f%player_name%"
+    leave:
+      - "&f[&c-&f] &f%player_name%"
 
+customMessages:
 # The example join/leave message requires players to have the "welcome.example" permission
+# You can set permissions to whatever you want! ex. "wow.a.cool.permission" or "group.mod"
 # It does not have any placeholder requirements
+# You can list multiple join/leave messages in each section!
+# If a player has multiple join/leave messages that are applicable to them the plugin will choose at random
   example:
     messages:
       join:
@@ -27,18 +29,20 @@ prisma-welcome:
     messages:
       join:
         - "&f[&a+&f] &eHello, &b%player_name%&e! This is a &#43FBA8hex color message."
-        - "&f[&a+&f] &eHello, &b%player_name%&e! This is a &#E28743hex color message."
       leave:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! This is a &#43FBA8hex color message."
     permission: welcome.hexcolorexample
     placeholders: []
 
-# The exampleBoth option requires the player to have the "welcome.exampleboth" permission.
-# It also requires the player's health to be 20, You can use any PAPI placeholders for placeholder conditions
 # You can also use placeholders for welcome message conditions
 # permissible operators for checking placeholders are:
 # '==', '>=', '<=', '>', and '<' for placeholders that return numbers
 # 'matches' and 'contains' for placeholders that return strings
+#
+#
+#
+# The exampleBoth option requires the player to have the "welcome.exampleboth" permission.
+# It also requires the player's health to be 20, You can use any PAPI placeholders for placeholder conditions
   exampleBoth:
     messages:
       join:
