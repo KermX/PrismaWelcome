@@ -1,10 +1,13 @@
 package me.kermx.prismawelcome;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import net.md_5.bungee.api.ChatColor;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -21,12 +24,12 @@ public class JoinListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        handlePlayerJoin(event.getPlayer(), event);
+        handlePlayerEvent(event.getPlayer(), event, "join");
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        handlePlayerLeave(event.getPlayer(), event);
+        handlePlayerEvent(event.getPlayer(), event, "leave");
     }
 
     private String parseColorCodes(String message) {
@@ -47,58 +50,110 @@ public class JoinListener implements Listener {
         return result.toString();
     }
 
-    private String parseMessages(List<String> messages, Player player, FileConfiguration config, String messageType) {
-        if (messages.isEmpty()) {
-            String defaultMessage = getDefaultMessages(config, messageType);
-            return parseColorCodes(defaultMessage.replace("%player%", player.getName()));
+    private void handlePlayerEvent(Player player, PlayerEvent event, String eventType) {
+        PrismaWelcome plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
+        FileConfiguration config = plugin.getPluginConfig();
+
+        List<String> customMessages = getCustomMessages(player, config, eventType);
+        String formattedMessage = parseMessages(customMessages, player);
+
+        if (event instanceof PlayerJoinEvent) {
+            ((PlayerJoinEvent) event).setJoinMessage(parseHexColorCodes(formattedMessage));
+        } else if (event instanceof PlayerQuitEvent) {
+            ((PlayerQuitEvent) event).setQuitMessage(parseHexColorCodes(formattedMessage));
         }
-
-        String randomMessage = getRandomMessage(messages);
-        return parseColorCodes(randomMessage.replace("%player%", player.getName()));
     }
 
-    private void handlePlayerJoin(Player player, PlayerJoinEvent event) {
-        PrismaWelcome plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
-        FileConfiguration config = plugin.getPluginConfig();
 
-        List<String> joinMessages = getCustomMessages(player, config, "join");
-        String formattedMessage = parseMessages(joinMessages, player, config, "join");
-
-        event.setJoinMessage(parseHexColorCodes(formattedMessage));
+    private String parseMessages(List<String> messages, Player player) {
+        String message = getRandomMessage(messages);
+        return parseColorCodes(PlaceholderAPI.setPlaceholders(player, message));
     }
 
-    private void handlePlayerLeave(Player player, PlayerQuitEvent event) {
-        PrismaWelcome plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
-        FileConfiguration config = plugin.getPluginConfig();
-
-        List<String> leaveMessages = getCustomMessages(player, config, "leave");
-        String formattedMessage = parseMessages(leaveMessages, player, config, "leave");
-
-        event.setQuitMessage(parseHexColorCodes(formattedMessage));
-    }
-
-    private String getDefaultMessages(FileConfiguration config, String messageType){
-        List<String> defaultMessages = config.getStringList("prisma-welcome.default.messages." + messageType);
-        return String.join("", defaultMessages);
-    }
 
     private List<String> getCustomMessages(Player player, FileConfiguration config, String messageType) {
+        Bukkit.getLogger().info("Executing getCustomMessages method");
         List<String> customMessages = new ArrayList<>();
 
         for (String key : config.getConfigurationSection("prisma-welcome").getKeys(false)) {
-            if (player.hasPermission("welcome." + key)) {
-                customMessages.addAll(config.getStringList("prisma-welcome." + key + ".messages." + messageType));
+            String permissionNode = config.getString("prisma-welcome." + key + ".permission");
+            List<String> conditionList = config.getStringList("prisma-welcome." + key + ".placeholders");
+
+            // Check if permissionNode is not specified or the player has the permission
+            boolean hasPermission = permissionNode == null || permissionNode.isEmpty() || player.hasPermission(permissionNode);
+
+            // Check if conditionList is empty or player meets the conditions
+            boolean shouldIncludeMessages = hasPermission && evaluateConditions(player, conditionList);
+
+            if (shouldIncludeMessages) {
+                List<String> messagesToAdd = config.getStringList("prisma-welcome." + key + ".messages." + messageType);
+                customMessages.addAll(messagesToAdd);
             }
         }
-
         return customMessages;
+    }
+
+    private boolean evaluateConditions(Player player, List<String> conditionList) {
+        Bukkit.getLogger().info("Executing evaluateConditions method");
+        if (conditionList == null || conditionList.isEmpty()) {
+            return true;
+        }
+
+        for (String condition : conditionList) {
+            String[] parts = condition.split(" ", 3);
+
+            if (parts.length == 3) {
+                String placeholder = parts[0];
+                String operator = parts[1];
+                String value = parts[2];
+
+                String placeholderValue = PlaceholderAPI.setPlaceholders(player, placeholder);
+                String valueValue = PlaceholderAPI.setPlaceholders(player, value);
+
+                if (evaluateCondition(placeholderValue, operator, valueValue) || evaluateCondition(valueValue, operator, placeholderValue)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean evaluateCondition(String placeholder, String operator, String value) {
+        switch (operator) {
+            case "==":
+                return placeholder.equals(value);
+            case ">=":
+                return compareNumbers(placeholder, value) >= 0;
+            case "<=":
+                return compareNumbers(placeholder, value) <= 0;
+            case ">":
+                return compareNumbers(placeholder, value) > 0;
+            case "<":
+                return compareNumbers(placeholder, value) < 0;
+            case "matches":
+                return placeholder.matches(value);
+            case "contains":
+                return placeholder.contains(value);
+            default:
+                return false;
+        }
+    }
+
+    private int compareNumbers(String placeholder, String value) {
+        try {
+            double placeholderValue = Double.parseDouble(placeholder);
+            double valueValue = Double.parseDouble(value);
+            return Double.compare(placeholderValue, valueValue);
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
     private String getRandomMessage(List<String> messages) {
         if (messages.isEmpty()) {
-            return "this should never happen"; // Handle the case when there are no messages
+            return "this should never happen";
         }
-
         int index = random.nextInt(messages.size());
         return messages.get(index);
     }

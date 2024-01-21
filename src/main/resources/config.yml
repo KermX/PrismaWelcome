@@ -1,26 +1,64 @@
 prisma-welcome:
+# The default join/leave messages have no permission requirements or placeholder conditions (You can rename this option)
   default:
     messages:
       join:
-        - "&f[&a+&f] &f%player%"
+        - "&f[&a+&f] &f%player_name%"
       leave:
-        - "&f[&c-&f] &f%player%"
+        - "&f[&c-&f] &f%player_name%"
+    permission: ""
+    placeholders: []
 
-  Example:
+# The example join/leave message requires players to have the "welcome.example" permission
+# It does not have any placeholder requirements
+  example:
     messages:
       join:
-        - "&f[&a+&f] &eHello, &b%player%&e! Welcome to the server."
-        - "&f[&a+&f] &eHello, &b%player%&e! Say hi everyone!"
+        - "&f[&a+&f] &eHello, &b%player_name%&e! Welcome to the server."
+        - "&f[&a+&f] &eHello, &b%player_name%&e! Say hi everyone!"
       leave:
-        - "&f[&c-&f] &eGoodbye, &b%player%&e! Cya later!"
-        - "&f[&c-&f] &eBye, &b%player%&e!"
+        - "&f[&c-&f] &eGoodbye, &b%player_name%&e! Cya later!"
+        - "&f[&c-&f] &eBye, &b%player_name%&e!"
     permission: welcome.example
+    placeholders: []
 
+# Just like the example message except this one has hex color codes!
   hexColorExample:
     messages:
       join:
-        - "&f[&a+&f] &eHello, &b%player%&e! This is a &#43FBA8hex color message."
-        - "&f[&a+&f] &eHello, &b%player%&e! This is a &#E28743hex color message."
+        - "&f[&a+&f] &eHello, &b%player_name%&e! This is a &#43FBA8hex color message."
+        - "&f[&a+&f] &eHello, &b%player_name%&e! This is a &#E28743hex color message."
       leave:
-        - "&f[&c-&f] &eGoodbye, &b%player%&e! This is a &#43FBA8hex color message."
+        - "&f[&c-&f] &eGoodbye, &b%player_name%&e! This is a &#43FBA8hex color message."
     permission: welcome.hexcolorexample
+    placeholders: []
+
+# The exampleBoth option requires the player to have the "welcome.exampleboth" permission.
+# It also requires the player's health to be 20, You can use any PAPI placeholders for placeholder conditions
+# You can also use placeholders for welcome message conditions
+# permissible operators for checking placeholders are:
+# '==', '>=', '<=', '>', and '<' for placeholders that return numbers
+# 'matches' and 'contains' for placeholders that return strings
+  exampleBoth:
+    messages:
+      join:
+        - "&f[&a+&f] &eHello, &b%player_name%&e! BOTH."
+      leave:
+        - "&f[&c-&f] &eGoodbye, &b%player_name%&e! BOTH."
+    permission: welcome.exampleboth
+    placeholders:
+      - "%player_health% == 20"
+
+# The examplePlaceholder option does not require a permission and only requires the placeholders to be true.
+# If you don't want to permission you can simply remove the "permission:" option or set it to an empty string with ""
+  examplePlaceholder:
+    messages:
+      join:
+        - "&f[&a+&f] &eHello, &b%player_name%&e! You have more than 2 health and less than 18 and your name is KermX!"
+      leave:
+        - "&f[&c-&f] &eBye, &b%player_name%&e!"
+    permission: ""
+    placeholders:
+      - "%player_health% > 2"
+      - "%player_health% < 18"
+      - "%player_name% matches KermX"

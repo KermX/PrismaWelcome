@@ -9,14 +9,24 @@ public final class PrismaWelcome extends JavaPlugin{
     public void onEnable() {
         saveDefaultConfig();
         getServer().getPluginManager().registerEvents(new JoinListener(), this);
-    }
 
+        Command command = new Command(this);
+        getCommand("prismawelcome").setExecutor(command);
+
+        getLogger().info("==============================================");
+        getLogger().info("PrismaWelcome Plugin has been enabled!");
+        getLogger().info("Author: KermX");
+        getLogger().info("Version: " + getDescription().getVersion());
+        getLogger().info("==============================================");
+    }
     public FileConfiguration getPluginConfig(){
         return getConfig();
     }
 
     @Override
     public void onDisable() {
-        // Plugin shutdown logic
+        getLogger().info("==============================================");
+        getLogger().info("PrismaWelcome Plugin has been disabled!");
+        getLogger().info("==============================================");
     }
 }
