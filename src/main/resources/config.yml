@@ -1,3 +1,30 @@
+# DO NOT RENAME firstJoinMessage!
+# This is the message that will be used when a player joins the server for the first time
+firstJoinMessage:
+  messages:
+    - "&f[&a+&f] &f%player_name% joined the server for the first time!"
+    - "&f[&a+&f] &f%player_name% is a new player!"
+    - "&f[&a+&f] &fWelcome %player_name% to the server!"
+
+welcomeRewarding:
+  actionBarEnabled: true
+  actionBarReminder: "Welcome new player %player_name% in the next %remaining_time% to get a reward!"
+  # Limit to say welcome in seconds
+  timeLimit: 30
+  # If the message sent by the player contains any of these they will be rewarded
+  # Ex. "omg! hi, welcome!" would be accepted because it contains "welcome"
+  acceptedWelcomes:
+    - "welcome"
+    - "greetings"
+  # welcomeRewards are console commands to be executed when a player welcomes someone
+  # use %player_name% for the name of the player.
+  # rewardMode can be random to select a random command from the list or all to execute all commands in the list
+  rewardMode: random #random|all
+  welcomeRewards:
+    - eco give %player_name% 100
+    - xp give %player_name% 100
+
+
 # DO NOT RENAME defaultMessage!
 # This is the message that will be used if the player has no other join/leave messages available to them
 defaultMessage:

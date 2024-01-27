@@ -2,10 +2,12 @@ package me.kermx.prismawelcome;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.md_5.bungee.api.ChatColor;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -15,16 +17,72 @@ import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class JoinListener implements Listener {
+
+
+    private WelcomeRewardSystem welcomeRewardSystem;
+    private ActionBarReminder actionBarReminder;
+    private Player newPlayer;
+    private PrismaWelcome plugin;
+
+    public JoinListener() {
+        plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
+        this.welcomeRewardSystem = loadWelcomeRewardSystem(plugin.getPluginConfig());
+        this.actionBarReminder = new ActionBarReminder(plugin, welcomeRewardSystem);
+    }
+
+    private WelcomeRewardSystem loadWelcomeRewardSystem(FileConfiguration config) {
+        int timeLimit = config.getInt("welcomeRewarding.timeLimit", 30);
+        List<String> acceptedWelcomes = config.getStringList("welcomeRewarding.acceptedWelcomes");
+        String rewardMode = config.getString("welcomeRewarding.rewardMode", "random");
+        List<String> welcomeRewards = config.getStringList("welcomeRewarding.welcomeRewards");
+
+        return new WelcomeRewardSystem(plugin, timeLimit, acceptedWelcomes, rewardMode, welcomeRewards);
+    }
+
+    @EventHandler
+    public void onPlayerChat(AsyncPlayerChatEvent event) {
+        Player welcomingPlayer = event.getPlayer();
+        String chatMessage = event.getMessage();
+
+        if (newPlayer != null) {
+            welcomeRewardSystem.processChatMessage(newPlayer, welcomingPlayer, chatMessage);
+        }
+    }
 
     private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
     private static final Random random = new Random();
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        handlePlayerEvent(event.getPlayer(), event, "join");
+        Player player = event.getPlayer();
+
+
+        PrismaWelcome plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
+        FileConfiguration config = plugin.getPluginConfig();
+        List<String> firstJoinMessage = config.getStringList("firstJoinMessage.messages");
+
+        if (!player.hasPlayedBefore() && !firstJoinMessage.isEmpty()){
+            String formattedMessage = parseMessages(firstJoinMessage, player);
+            event.setJoinMessage(parseHexColorCodes(formattedMessage));
+
+            newPlayer = player;
+            Bukkit.getScheduler().runTaskLater(plugin, () -> newPlayer = null, 20L * welcomeRewardSystem.getTimeLimit());
+
+            if (config.getBoolean("welcomeRewarding.actionBarEnabled", false)) {
+                List<Player> onlinePlayers = Bukkit.getOnlinePlayers().stream()
+                        .filter(p -> p != newPlayer)
+                        .collect(Collectors.toList());
+
+                actionBarReminder.displayActionBar(onlinePlayers, newPlayer, config);
+            }
+        } else {
+            handlePlayerEvent(event.getPlayer(), event, "join");
+        }
     }
+
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
