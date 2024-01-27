@@ -22,7 +22,7 @@ welcomeRewarding:
   rewardMode: random #random|all
   welcomeRewards:
     - eco give %player_name% 100
-    - xp give %player_name% 100
+    - xp give %player_name% 10
 
 
 # DO NOT RENAME defaultMessage!
