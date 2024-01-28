@@ -1,10 +1,8 @@
-# DO NOT RENAME firstJoinMessage!
-# This is the message that will be used when a player joins the server for the first time
-firstJoinMessage:
-  messages:
-    - "&f[&a+&f] &f%player_name% joined the server for the first time!"
-    - "&f[&a+&f] &f%player_name% is a new player!"
-    - "&f[&a+&f] &fWelcome %player_name% to the server!"
+silenceJoinLeaveAbovePlayerCount:
+  enable: false
+# The amount of players that must be online to silence join/leave messages
+# Set to something really high if you don't want this feature
+  playerCount: 25
 
 welcomeRewarding:
   actionBarEnabled: true
@@ -23,6 +21,14 @@ welcomeRewarding:
   welcomeRewards:
     - eco give %player_name% 100
     - xp give %player_name% 10
+
+# DO NOT RENAME firstJoinMessage!
+# This is the message that will be used when a player joins the server for the first time
+firstJoinMessage:
+  messages:
+    - "&f[&a+&f] &f%player_name% joined the server for the first time!"
+    - "&f[&a+&f] &f%player_name% is a new player!"
+    - "&f[&a+&f] &fWelcome %player_name% to the server!"
 
 
 # DO NOT RENAME defaultMessage!
@@ -78,7 +84,7 @@ customMessages:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! BOTH."
     permission: welcome.exampleboth
     placeholders:
-      - "%player_health% == 20"
+      - "%player_health% >= 19"
 
 # The examplePlaceholder option does not require a permission and only requires the placeholders to be true.
 # If you don't want to permission you can simply remove the "permission:" option or set it to an empty string with ""
@@ -93,3 +99,60 @@ customMessages:
       - "%player_health% > 2"
       - "%player_health% < 18"
       - "%player_name% matches KermX"
+
+
+# MOTD is a message that is sent only to the player that joins the server
+# In this section you can have multiple lines for each motd.
+firstJoinMOTD:
+  message:
+    - "&fHello &f%player_name% welcome to our server!"
+    - "&fUse /help to receive help."
+
+# This is the message that will be used if the player has no other MOTD messages available to them
+defaultMOTD:
+  message:
+    - "&eWelcome back &f%player_name%! Your balance is %vault_eco_balance_formatted%"
+    - "&eThis is a second line!"
+
+# MOTD is a message that is sent to the player that joins the server
+customMOTDs:
+  example:
+    message:
+      - "&eHello, &b%player_name%&e! This is an example motd."
+      - "&eThis is the second line of the example motd!"
+    permission: motd.example
+    placeholders: []
+
+  # Just like the example message except this one has hex color codes!
+  hexColorExample:
+    message:
+      - "&eHello, &b%player_name%&e! This is a &#43FBA8hex color motd."
+    permission: motd.hexcolorexample
+    placeholders: []
+
+  # You can also use placeholders for welcome message conditions
+  # permissible operators for checking placeholders are:
+  # '==', '>=', '<=', '>', and '<' for placeholders that return numbers
+  # 'matches' and 'contains' for placeholders that return strings
+  #
+  #
+  #
+  # The exampleBoth option requires the player to have the "welcome.exampleboth" permission.
+  # It also requires the player's health to be 20, You can use any PAPI placeholders for placeholder conditions
+  exampleBoth:
+    message:
+      - "&f[&a+&f] &eHello, &b%player_name%&e! BOTH."
+    permission: motd.exampleboth
+    placeholders:
+      - "%player_health% == 20"
+
+  # The examplePlaceholder option does not require a permission and only requires the placeholders to be true.
+  # If you don't want to permission you can simply remove the "permission:" option or set it to an empty string with ""
+  examplePlaceholder:
+    message:
+      - "&eWoah, &b%player_name%&e! Better heal up, you have less than 10 health!"
+      - "&eYou need to eat something!"
+    permission: ""
+    placeholders:
+      - "%player_health% < 10"
+      - "%player_food_level% < 20"

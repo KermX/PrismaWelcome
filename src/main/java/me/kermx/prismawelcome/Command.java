@@ -15,20 +15,26 @@ public class Command implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull org.bukkit.command.Command command, @NotNull String label, @NotNull String[] args) {
-
-        if (command.getName().equalsIgnoreCase("prismawelcome")){
-            if (args.length == 1 && args[0].equalsIgnoreCase("reload")){
-                if (sender.hasPermission("prismawelcome.reload")){
-                    plugin.reloadConfig();
-                    sender.sendMessage(ChatColor.GREEN + "PrismaWelcome config reloaded!");
-                    return true;
-                }
-                sender.sendMessage(ChatColor.RED + "You don't have permission!");
-                return false;
-            }
-            sender.sendMessage(ChatColor.RED + "Invalid syntax");
+        if (!command.getName().equalsIgnoreCase("prismawelcome")) {
             return false;
         }
+
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            return handleReloadCommand(sender);
+        }
+
+        sender.sendMessage(ChatColor.RED + "Invalid syntax");
         return false;
+    }
+
+    private boolean handleReloadCommand(CommandSender sender) {
+        if (!sender.hasPermission("prismawelcome.reload")) {
+            sender.sendMessage(ChatColor.RED + "You don't have permission!");
+            return false;
+        }
+
+        plugin.reloadConfig();
+        sender.sendMessage(ChatColor.GREEN + "PrismaWelcome config reloaded!");
+        return true;
     }
 }

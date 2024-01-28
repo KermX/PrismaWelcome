@@ -17,7 +17,7 @@ public class WelcomeRewardSystem {
     private final List<String> welcomeRewards;
     private final Plugin plugin;
 
-    public WelcomeRewardSystem(Plugin plugin, int timeLimit, List<String> acceptedWelcomes, String rewardMode, List<String> welcomeRewards){
+    public WelcomeRewardSystem(Plugin plugin, int timeLimit, List<String> acceptedWelcomes, String rewardMode, List<String> welcomeRewards) {
         this.plugin = plugin;
         this.timeLimit = timeLimit;
         this.acceptedWelcomes = acceptedWelcomes;
@@ -26,10 +26,10 @@ public class WelcomeRewardSystem {
         this.rewardedPlayers = new HashSet<>();
     }
 
-    public void processChatMessage(Player newPlayer, Player welcomingPlayer, String message){
+    public void processChatMessage(Player newPlayer, Player welcomingPlayer, String message) {
         long joinTime = newPlayer.getFirstPlayed() / 1000;
         String welcomingPlayerName = welcomingPlayer.getName();
-        if (!rewardedPlayers.contains(welcomingPlayerName) && System.currentTimeMillis() / 1000 - joinTime <= timeLimit && containsAcceptedWord(message)){
+        if (!rewardedPlayers.contains(welcomingPlayerName) && System.currentTimeMillis() / 1000 - joinTime <= timeLimit && containsAcceptedWord(message)) {
             executeRewards(welcomingPlayer);
             rewardedPlayers.add(welcomingPlayerName);
 
@@ -37,42 +37,34 @@ public class WelcomeRewardSystem {
         }
     }
 
-    private boolean containsAcceptedWord(String message){
-        for (String acceptedWelcome : acceptedWelcomes){
-            if (message.toLowerCase().contains(acceptedWelcome.toLowerCase())){
-                return true;
-            }
-        }
-        return false;
+    private boolean containsAcceptedWord(String message) {
+        String lowerCaseMessage = message.toLowerCase();
+        return acceptedWelcomes.stream().anyMatch(acceptedWelcome -> lowerCaseMessage.contains(acceptedWelcome.toLowerCase()));
     }
 
-    private void executeRewards(Player player){
-        if ("random".equalsIgnoreCase(rewardMode)){
+    private void executeRewards(Player player) {
+        if ("random".equalsIgnoreCase(rewardMode)) {
             executeRandomReward(player);
         } else if ("all".equalsIgnoreCase(rewardMode)) {
             executeAllRewards(player);
         }
     }
 
-    private void executeRandomReward(Player player){
-        if (!welcomeRewards.isEmpty()){
-            String randomCommand = welcomeRewards.get(new Random().nextInt(welcomeRewards.size()));
-            executeCommand(player, randomCommand);
-        }
+    private void executeRandomReward(Player player) {
+        welcomeRewards.stream()
+                .findAny()
+                .ifPresent(randomCommand -> executeCommand(player, randomCommand));
     }
 
-    private void executeAllRewards(Player player){
-        for (String command : welcomeRewards){
-            executeCommand(player, command);
-        }
+    private void executeAllRewards(Player player) {
+        welcomeRewards.forEach(command -> executeCommand(player, command));
     }
 
     private void executeCommand(Player player, String command) {
         String finalCommand = command.replace("%player_name%", player.getName());
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand);
-        });
+        Bukkit.getScheduler().runTask(plugin, () ->
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), finalCommand));
     }
 
     public int getTimeLimit() {

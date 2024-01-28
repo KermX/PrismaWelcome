@@ -21,16 +21,18 @@ import java.util.stream.Collectors;
 
 public class JoinListener implements Listener {
 
-
-    private WelcomeRewardSystem welcomeRewardSystem;
-    private ActionBarReminder actionBarReminder;
+    private final WelcomeRewardSystem welcomeRewardSystem;
+    private final ActionBarReminder actionBarReminder;
     private Player newPlayer;
-    private PrismaWelcome plugin;
+    private final PrismaWelcome plugin;
+    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
+    private static final Random random = new Random();
 
     public JoinListener() {
         plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
-        this.welcomeRewardSystem = loadWelcomeRewardSystem(plugin.getPluginConfig());
-        this.actionBarReminder = new ActionBarReminder(plugin, welcomeRewardSystem);
+        FileConfiguration config = plugin.getPluginConfig();
+        welcomeRewardSystem = loadWelcomeRewardSystem(config);
+        actionBarReminder = new ActionBarReminder(plugin, welcomeRewardSystem);
     }
 
     private WelcomeRewardSystem loadWelcomeRewardSystem(FileConfiguration config) {
@@ -52,21 +54,52 @@ public class JoinListener implements Listener {
         }
     }
 
-    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
-    private static final Random random = new Random();
-
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-
-
-        PrismaWelcome plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
         FileConfiguration config = plugin.getPluginConfig();
+        int currentOnlinePlayers = Bukkit.getOnlinePlayers().size();
+
+        if (shouldSilenceJoinLeave(config, currentOnlinePlayers)) {
+            event.setJoinMessage(null);
+            return;
+        }
+
+        if (!player.hasPlayedBefore()) {
+            handleFirstJoin(player, event, config, currentOnlinePlayers);
+        } else {
+            handleRegularJoin(player, event, config, currentOnlinePlayers);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        FileConfiguration config = plugin.getPluginConfig();
+        int currentOnlinePlayers = Bukkit.getOnlinePlayers().size();
+
+        if (shouldSilenceJoinLeave(config, currentOnlinePlayers)) {
+            event.setQuitMessage(null);
+            return;
+        }
+
+        handlePlayerEvent(event.getPlayer(), event, "leave");
+    }
+
+    private boolean shouldSilenceJoinLeave(FileConfiguration config, int currentOnlinePlayers) {
+        return config.getBoolean("silenceJoinLeaveAbovePlayerCount.enable", false)
+                && currentOnlinePlayers > config.getInt("silenceJoinLeaveAbovePlayerCount.playerCount", 25);
+    }
+
+    private void handleFirstJoin(Player player, PlayerJoinEvent event, FileConfiguration config, int currentOnlinePlayers) {
         List<String> firstJoinMessage = config.getStringList("firstJoinMessage.messages");
 
-        if (!player.hasPlayedBefore() && !firstJoinMessage.isEmpty()){
+        if (!firstJoinMessage.isEmpty()) {
+            handleSilentJoinLeave(event, config, currentOnlinePlayers);
+
             String formattedMessage = parseMessages(firstJoinMessage, player);
             event.setJoinMessage(parseHexColorCodes(formattedMessage));
+
+            handleMOTD(player, config.getStringList("firstJoinMOTD.message"));
 
             newPlayer = player;
             Bukkit.getScheduler().runTaskLater(plugin, () -> newPlayer = null, 20L * welcomeRewardSystem.getTimeLimit());
@@ -78,15 +111,23 @@ public class JoinListener implements Listener {
 
                 actionBarReminder.displayActionBar(onlinePlayers, newPlayer, config);
             }
-        } else {
-            handlePlayerEvent(event.getPlayer(), event, "join");
         }
     }
 
+    private void handleRegularJoin(Player player, PlayerJoinEvent event, FileConfiguration config, int currentOnlinePlayers) {
+        handleSilentJoinLeave(event, config, currentOnlinePlayers);
+        handlePlayerEvent(player, event, "join");
+        handleRandomCustomMOTD(player, config);
+    }
 
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        handlePlayerEvent(event.getPlayer(), event, "leave");
+    private void handleSilentJoinLeave(PlayerEvent event, FileConfiguration config, int currentOnlinePlayers) {
+        if (shouldSilenceJoinLeave(config, currentOnlinePlayers)) {
+            if (event instanceof PlayerJoinEvent) {
+                ((PlayerJoinEvent) event).setJoinMessage(null);
+            } else if (event instanceof PlayerQuitEvent) {
+                ((PlayerQuitEvent) event).setQuitMessage(null);
+            }
+        }
     }
 
     private String parseColorCodes(String message) {
@@ -150,6 +191,41 @@ public class JoinListener implements Listener {
             customMessages.addAll(config.getStringList("defaultMessage.messages." + messageType));
         }
         return customMessages;
+    }
+
+    private void handleRandomCustomMOTD(Player player, FileConfiguration config) {
+        List<String> accessibleMOTDs = getAccessibleCustomMOTDs(player, config);
+        if (accessibleMOTDs.isEmpty()) {
+            handleMOTD(player, config.getStringList("defaultMOTD.message"));
+        } else {
+            String randomMOTDKey = accessibleMOTDs.get(new Random().nextInt(accessibleMOTDs.size()));
+            List<String> motdMessages = config.getStringList("customMOTDs." + randomMOTDKey + ".message");
+            handleMOTD(player, motdMessages);
+        }
+    }
+
+    private List<String> getAccessibleCustomMOTDs(Player player, FileConfiguration config) {
+        List<String> accessibleMOTDs = new ArrayList<>();
+
+        for (String key : config.getConfigurationSection("customMOTDs").getKeys(false)) {
+            String permissionNode = config.getString("customMOTDs." + key + ".permission");
+            List<String> conditionList = config.getStringList("customMOTDs." + key + ".placeholders");
+
+            boolean hasPermission = permissionNode == null || permissionNode.isEmpty() || player.hasPermission(permissionNode);
+
+            boolean shouldDisplayMOTD = hasPermission && evaluateConditions(player, conditionList);
+
+            if (shouldDisplayMOTD) {
+                accessibleMOTDs.add(key);
+            }
+        }
+        return accessibleMOTDs;
+    }
+
+    private void handleMOTD(Player player, List<String> motdMessages) {
+        for (String line : motdMessages) {
+            player.sendMessage(parseHexColorCodes(parseColorCodes(PlaceholderAPI.setPlaceholders(player, line))));
+        }
     }
 
     private boolean evaluateConditions(Player player, List<String> conditionList) {
