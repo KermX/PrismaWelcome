@@ -1,8 +1,52 @@
+##TO-DO##
+# Implement join sounds -- done in config
+# Implement hover text -- done in config
+# World blacklist/whitelist -- done in config
+# Delay for join messages -- done in config
+# Commands on join/first join/leave
+# Vanish support -- done in config
+#
+#
+#
 silenceJoinLeaveAbovePlayerCount:
   enable: false
 # The amount of players that must be online to silence join/leave messages
 # Set to something really high if you don't want this feature
   playerCount: 25
+
+# delay in tick (20 ticks = 1 second) before join message is sent
+# in case you have problems with placeholders parsing this can be increased
+joinMessageDelay: 20
+
+# Users with this permission will never send join and leave messages
+silenceJoinLeavePermission: "prismawelcome.silent"
+
+# Check for players that join in vanish mode
+checkVanishPlaceholders:
+  enable: false
+# PrismaWelcome will only check players with this permission for vanish join
+# You should give this to all staff with vanish permissions
+  permission: "prismawelcome.staff"
+# Send a message to the joining player if they join in vanish
+  notifyJoiner: false
+  notificationMessage: "You joined in Vanish mode! No join message was sent!"
+# Don't edit unless you know what these are
+  metadata:
+    - "vanished"
+    - "Vanished"
+# Remove or comment out all placeholder checks that you do not use!
+  placeholders:
+    - "%essentials_vanished% == yes"
+    - "%supervanish_isvanished% == true"
+    - "%premiumvanish_isvanished% == true"
+    - "%stafffacilities_vanished% == true"
+    - "%protocolvanish_player_is_vanished% == true"
+    - "%simplevanish_vanished% == true"
+
+# Players joining into this world will have no join/leave messages
+worldBlacklist:
+  - exampleWorld
+  - exampleWorldAlso
 
 welcomeRewarding:
   actionBarEnabled: true
@@ -22,6 +66,47 @@ welcomeRewarding:
     - eco give %player_name% 100
     - xp give %player_name% 10
 
+##IMPLEMENT LATER!!!!!##
+##IMPLEMENT LATER!!!!!##
+##IMPLEMENT LATER!!!!!##
+##IMPLEMENT LATER!!!!!##
+##IMPLEMENT LATER!!!!!##
+# Hover messages are messages shown when someone hovers their mouse over join and leave messages in chat
+hoverMessages:
+  firstJoin:
+    enable: true
+    hoverText:
+      - "&d------------------------------"
+      - "Click to welcome &#9b5f7c%player_name%"
+      - "&d------------------------------"
+    # Valid clickActions are RUN_COMMAND, SUGGEST_COMMAND, OPEN_URL, and NONE
+    clickAction: "RUN_COMMAND"
+    clickValue: "/say welcome!"
+  join:
+    enable: true
+    hoverText:
+      - "------------------------------"
+      - "Name: %player_name%"
+      - "Health: %player_health%"
+      - "Hunger: %player_food_level%"
+      - ""
+      - "Click to message %player_name%"
+      - "------------------------------"
+    clickAction: "SUGGEST_COMMAND"
+    clickValue: "/msg %player_name%"
+  leave:
+    enable: true
+    hoverText:
+      - "------------------------------"
+      - "Name: %player_name%"
+      - "Health: %player_health%"
+      - "Hunger: %player_food_level%"
+      - ""
+      - "Cya later %player_name%"
+      - "------------------------------"
+    clickAction: "OPEN_URL"
+    clickValue: "https://namemc.com/profile/{player_name}"
+
 # DO NOT RENAME firstJoinMessage!
 # This is the message that will be used when a player joins the server for the first time
 firstJoinMessage:
@@ -29,6 +114,9 @@ firstJoinMessage:
     - "&f[&a+&f] &f%player_name% joined the server for the first time!"
     - "&f[&a+&f] &f%player_name% is a new player!"
     - "&f[&a+&f] &fWelcome %player_name% to the server!"
+  sound: ""
+  commands:
+    - "eco give %player% 10"
 
 
 # DO NOT RENAME defaultMessage!
@@ -39,6 +127,10 @@ defaultMessage:
       - "&f[&a+&f] &f%player_name%"
     leave:
       - "&f[&c-&f] &f%player_name%"
+    sounds:
+      join: ""
+      leave: ""
+    commands: []
 
 customMessages:
 # The example join/leave message requires players to have the "welcome.example" permission
@@ -54,6 +146,10 @@ customMessages:
       leave:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! Cya later!"
         - "&f[&c-&f] &eBye, &b%player_name%&e!"
+    sounds:
+      join: ""
+      leave: ""
+    commands: []
     permission: welcome.example
     placeholders: []
 
@@ -64,6 +160,10 @@ customMessages:
         - "&f[&a+&f] &eHello, &b%player_name%&e! This is a &#43FBA8hex color message."
       leave:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! This is a &#43FBA8hex color message."
+    sounds:
+      join: ""
+      leave: ""
+    commands: []
     permission: welcome.hexcolorexample
     placeholders: []
 
@@ -82,6 +182,10 @@ customMessages:
         - "&f[&a+&f] &eHello, &b%player_name%&e! BOTH."
       leave:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! BOTH."
+    sounds:
+      join: ""
+      leave: ""
+    commands: []
     permission: welcome.exampleboth
     placeholders:
       - "%player_health% >= 19"
@@ -94,6 +198,10 @@ customMessages:
         - "&f[&a+&f] &eHello, &b%player_name%&e! You have more than 2 health and less than 18 and your name is KermX!"
       leave:
         - "&f[&c-&f] &eBye, &b%player_name%&e!"
+    sounds:
+      join: ""
+      leave: ""
+    commands: []
     permission: ""
     placeholders:
       - "%player_health% > 2"

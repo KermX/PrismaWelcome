@@ -2,6 +2,8 @@ package me.kermx.prismawelcome;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.md_5.bungee.api.ChatColor;
+import net.md_5.bungee.api.chat.*;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -49,7 +51,7 @@ public class JoinListener implements Listener {
         Player welcomingPlayer = event.getPlayer();
         String chatMessage = event.getMessage();
 
-        if (newPlayer != null) {
+        if (newPlayer != null && newPlayer != welcomingPlayer) {
             welcomeRewardSystem.processChatMessage(newPlayer, welcomingPlayer, chatMessage);
         }
     }
@@ -60,7 +62,7 @@ public class JoinListener implements Listener {
         FileConfiguration config = plugin.getPluginConfig();
         int currentOnlinePlayers = Bukkit.getOnlinePlayers().size();
 
-        if (shouldSilenceJoinLeave(config, currentOnlinePlayers)) {
+        if (shouldSilenceJoinLeave(config, currentOnlinePlayers, player)) {
             event.setJoinMessage(null);
             return;
         }
@@ -77,7 +79,7 @@ public class JoinListener implements Listener {
         FileConfiguration config = plugin.getPluginConfig();
         int currentOnlinePlayers = Bukkit.getOnlinePlayers().size();
 
-        if (shouldSilenceJoinLeave(config, currentOnlinePlayers)) {
+        if (shouldSilenceJoinLeave(config, currentOnlinePlayers, event.getPlayer())) {
             event.setQuitMessage(null);
             return;
         }
@@ -85,9 +87,10 @@ public class JoinListener implements Listener {
         handlePlayerEvent(event.getPlayer(), event, "leave");
     }
 
-    private boolean shouldSilenceJoinLeave(FileConfiguration config, int currentOnlinePlayers) {
+    private boolean shouldSilenceJoinLeave(FileConfiguration config, int currentOnlinePlayers, Player player) {
         return config.getBoolean("silenceJoinLeaveAbovePlayerCount.enable", false)
-                && currentOnlinePlayers > config.getInt("silenceJoinLeaveAbovePlayerCount.playerCount", 25);
+                && currentOnlinePlayers > config.getInt("silenceJoinLeaveAbovePlayerCount.playerCount", 25)
+                || player.hasPermission(config.getString("silenceJoinLeavePermission", "prismawelcome.silent"));
     }
 
     private void handleFirstJoin(Player player, PlayerJoinEvent event, FileConfiguration config, int currentOnlinePlayers) {
@@ -97,7 +100,7 @@ public class JoinListener implements Listener {
             handleSilentJoinLeave(event, config, currentOnlinePlayers);
 
             String formattedMessage = parseMessages(firstJoinMessage, player);
-            event.setJoinMessage(parseHexColorCodes(formattedMessage));
+            event.setJoinMessage(null);
 
             handleMOTD(player, config.getStringList("firstJoinMOTD.message"));
 
@@ -111,6 +114,34 @@ public class JoinListener implements Listener {
 
                 actionBarReminder.displayActionBar(onlinePlayers, newPlayer, config);
             }
+
+            List<String> hoverText = config.getStringList("hoverMessages.firstJoin.hoverText");
+            String clickAction = config.getString("hoverMessages.firstJoin.clickAction");
+            String clickValue = config.getString("hoverMessages.firstJoin.clickValue");
+
+            TextComponent welcomeMessage = new TextComponent(parseHexColorCodes(parseColorCodes(formattedMessage)));
+            if (config.getBoolean("hoverMessages.firstJoin.enable", true) && hoverText != null && !hoverText.isEmpty()) {
+                TextComponent hoverComponent = new TextComponent();
+
+                for (int i = 0; i < hoverText.size(); i++) {
+                    String line = hoverText.get(i);
+                    hoverComponent.addExtra(new TextComponent(parseHexColorCodes(parseColorCodes(line))));
+
+                    if (i < hoverText.size() - 1) {
+                        hoverComponent.addExtra("\n");
+                    }
+                }
+
+                if (!(clickAction == null) && !clickAction.equals("NONE")) {
+                    welcomeMessage.setClickEvent(new ClickEvent(ClickEvent.Action.valueOf(clickAction.toUpperCase()), clickValue));
+                }
+                BaseComponent[] hoverComponentBuilder = new ComponentBuilder(hoverComponent).create();
+                welcomeMessage.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hoverComponentBuilder)));
+            }
+
+            for (Player onlinePlayer : Bukkit.getOnlinePlayers()){
+                onlinePlayer.spigot().sendMessage(welcomeMessage);
+            }
         }
     }
 
@@ -121,7 +152,7 @@ public class JoinListener implements Listener {
     }
 
     private void handleSilentJoinLeave(PlayerEvent event, FileConfiguration config, int currentOnlinePlayers) {
-        if (shouldSilenceJoinLeave(config, currentOnlinePlayers)) {
+        if (shouldSilenceJoinLeave(config, currentOnlinePlayers, event.getPlayer())) {
             if (event instanceof PlayerJoinEvent) {
                 ((PlayerJoinEvent) event).setJoinMessage(null);
             } else if (event instanceof PlayerQuitEvent) {
