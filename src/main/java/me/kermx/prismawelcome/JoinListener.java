@@ -121,6 +121,7 @@ public class JoinListener implements Listener {
 
             TextComponent welcomeMessage = new TextComponent(parseHexColorCodes(parseColorCodes(formattedMessage)));
             if (config.getBoolean("hoverMessages.firstJoin.enable", true) && hoverText != null && !hoverText.isEmpty()) {
+                // this part is dogshit but I just want to see how to make it work before implementing in its own method
                 TextComponent hoverComponent = new TextComponent();
 
                 for (int i = 0; i < hoverText.size(); i++) {
