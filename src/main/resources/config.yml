@@ -1,11 +1,12 @@
 ##TO-DO##
+# Fix Hex colors
 # Implement join sounds -- done in config
-# Implement hover text -- done in config
 # World blacklist/whitelist -- done in config
 # Delay for join messages -- done in config
-# Commands on join/first join/leave
+# Commands on join/first join/leave -- done in config
 # Vanish support -- done in config
 #
+# Implement hover text -- DONE
 #
 #
 silenceJoinLeaveAbovePlayerCount:
@@ -42,7 +43,6 @@ checkVanishPlaceholders:
     - "%stafffacilities_vanished% == true"
     - "%protocolvanish_player_is_vanished% == true"
     - "%simplevanish_vanished% == true"
-
 # Players joining into this world will have no join/leave messages
 worldBlacklist:
   - exampleWorld
@@ -66,11 +66,6 @@ welcomeRewarding:
     - eco give %player_name% 100
     - xp give %player_name% 10
 
-##IMPLEMENT LATER!!!!!##
-##IMPLEMENT LATER!!!!!##
-##IMPLEMENT LATER!!!!!##
-##IMPLEMENT LATER!!!!!##
-##IMPLEMENT LATER!!!!!##
 # Hover messages are messages shown when someone hovers their mouse over join and leave messages in chat
 hoverMessages:
   firstJoin:
@@ -80,18 +75,18 @@ hoverMessages:
       - "Click to welcome &#9b5f7c%player_name%"
       - "&d------------------------------"
     # Valid clickActions are RUN_COMMAND, SUGGEST_COMMAND, OPEN_URL, and NONE
-    clickAction: "RUN_COMMAND"
-    clickValue: "/say welcome!"
+    clickAction: "SUGGEST_COMMAND"
+    clickValue: "welcome!"
   join:
     enable: true
     hoverText:
-      - "------------------------------"
+      - "&#9b5f7c------------------------------"
       - "Name: %player_name%"
       - "Health: %player_health%"
       - "Hunger: %player_food_level%"
       - ""
       - "Click to message %player_name%"
-      - "------------------------------"
+      - "&#9b5f7c------------------------------"
     clickAction: "SUGGEST_COMMAND"
     clickValue: "/msg %player_name%"
   leave:
@@ -124,9 +119,9 @@ firstJoinMessage:
 defaultMessage:
   messages:
     join:
-      - "&f[&a+&f] &f%player_name%"
+      - "&f[&a+&f] &f%player_name% &#9b5f7cTesting colors"
     leave:
-      - "&f[&c-&f] &f%player_name%"
+      - "&f[&c-&f] &f%player_name% &#9b5f7cTesting colors"
     sounds:
       join: ""
       leave: ""

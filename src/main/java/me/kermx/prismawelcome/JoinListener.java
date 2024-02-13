@@ -15,6 +15,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -93,6 +94,63 @@ public class JoinListener implements Listener {
                 || player.hasPermission(config.getString("silenceJoinLeavePermission", "prismawelcome.silent"));
     }
 
+    private void handleMessage(Player player, FileConfiguration config, String messageType, String formattedMessage){
+
+        /*
+        BaseComponent[] messageComp = TextComponent.fromLegacyText(formattedMessage);
+        ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/help");
+        TextComponent hoverComp = new TextComponent("TESTING!!!");
+        BaseComponent[] hoverCompBuilder = new ComponentBuilder(hoverComp).create();
+        HoverEvent hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT,new Text(hoverCompBuilder));
+
+        for (BaseComponent comp : messageComp){
+            comp.setClickEvent(clickEvent);
+            comp.setHoverEvent(hoverEvent);
+        }*/
+
+        List<String> hoverText = config.getStringList("hoverMessages." + messageType + ".hoverText");
+        String clickAction = config.getString("hoverMessages." + messageType + ".clickAction");
+        String clickValue = config.getString("hoverMessages." + messageType + ".clickValue");
+
+        BaseComponent[] messageComponent = TextComponent.fromLegacyText(formattedMessage);
+
+        if (config.getBoolean("hoverMessages." + messageType + ".enable", false) && hoverText != null && !hoverText.isEmpty()){
+
+            TextComponent hoverComponent = new TextComponent();
+
+            // Probably need parse color codes and such for hoverText as a string list and then make this a base component using fromLegacyText in order to get color codes working.
+            // painpainpainpainpainpainpain
+
+            for (int i = 0; i < hoverText.size(); i++) {
+                String line = parsePlaceholders(player, hoverText.get(i));
+                hoverComponent.addExtra(new TextComponent(parseHexColorCodes(parseColorCodes(line))));
+
+                if (i < hoverText.size() - 1) {
+                    hoverComponent.addExtra(new TextComponent("\n"));
+                }
+            }
+
+            if (clickAction != null && !clickAction.equals("NONE")) {
+                ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.valueOf(clickAction.toUpperCase()), clickValue);
+                for (BaseComponent component : messageComponent){
+                    component.setClickEvent(clickEvent);
+                }
+            }
+            BaseComponent[] hoverComponentBuilder = new ComponentBuilder(hoverComponent).create();
+            HoverEvent hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hoverComponentBuilder));
+            for (BaseComponent component : messageComponent){
+                component.setHoverEvent(hoverEvent);
+            }
+        }
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()){
+            onlinePlayer.spigot().sendMessage(messageComponent);
+        }
+    }
+
+    private String parsePlaceholders(Player player, String text) {
+        return PlaceholderAPI.setPlaceholders(player, text);
+    }
+
     private void handleFirstJoin(Player player, PlayerJoinEvent event, FileConfiguration config, int currentOnlinePlayers) {
         List<String> firstJoinMessage = config.getStringList("firstJoinMessage.messages");
 
@@ -114,35 +172,7 @@ public class JoinListener implements Listener {
 
                 actionBarReminder.displayActionBar(onlinePlayers, newPlayer, config);
             }
-
-            List<String> hoverText = config.getStringList("hoverMessages.firstJoin.hoverText");
-            String clickAction = config.getString("hoverMessages.firstJoin.clickAction");
-            String clickValue = config.getString("hoverMessages.firstJoin.clickValue");
-
-            TextComponent welcomeMessage = new TextComponent(parseHexColorCodes(parseColorCodes(formattedMessage)));
-            if (config.getBoolean("hoverMessages.firstJoin.enable", true) && hoverText != null && !hoverText.isEmpty()) {
-                // this part is dogshit but I just want to see how to make it work before implementing in its own method
-                TextComponent hoverComponent = new TextComponent();
-
-                for (int i = 0; i < hoverText.size(); i++) {
-                    String line = hoverText.get(i);
-                    hoverComponent.addExtra(new TextComponent(parseHexColorCodes(parseColorCodes(line))));
-
-                    if (i < hoverText.size() - 1) {
-                        hoverComponent.addExtra("\n");
-                    }
-                }
-
-                if (!(clickAction == null) && !clickAction.equals("NONE")) {
-                    welcomeMessage.setClickEvent(new ClickEvent(ClickEvent.Action.valueOf(clickAction.toUpperCase()), clickValue));
-                }
-                BaseComponent[] hoverComponentBuilder = new ComponentBuilder(hoverComponent).create();
-                welcomeMessage.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hoverComponentBuilder)));
-            }
-
-            for (Player onlinePlayer : Bukkit.getOnlinePlayers()){
-                onlinePlayer.spigot().sendMessage(welcomeMessage);
-            }
+            handleMessage(player, config, "firstJoin", formattedMessage);
         }
     }
 
@@ -188,16 +218,18 @@ public class JoinListener implements Listener {
         String formattedMessage = parseMessages(customMessages, player);
 
         if (event instanceof PlayerJoinEvent) {
-            ((PlayerJoinEvent) event).setJoinMessage(parseHexColorCodes(formattedMessage));
+            ((PlayerJoinEvent) event).setJoinMessage(null);
+            handleMessage(player, config, "join", formattedMessage);
         } else if (event instanceof PlayerQuitEvent) {
-            ((PlayerQuitEvent) event).setQuitMessage(parseHexColorCodes(formattedMessage));
+            ((PlayerQuitEvent) event).setQuitMessage(null);
+            handleMessage(player, config, "leave", formattedMessage);
         }
     }
 
 
     private String parseMessages(List<String> messages, Player player) {
         String message = getRandomMessage(messages);
-        return parseColorCodes(PlaceholderAPI.setPlaceholders(player, message));
+        return parseHexColorCodes(parseColorCodes(PlaceholderAPI.setPlaceholders(player, message)));
     }
 
 
