@@ -1,12 +1,11 @@
 ##TO-DO##
-# Fix Hex colors
-# Implement join sounds -- done in config
-# World blacklist/whitelist -- done in config
-# Delay for join messages -- done in config
-# Commands on join/first join/leave -- done in config
-# Vanish support -- done in config
-#
+# Fix Hex colors -- DONE
+# World blacklist/whitelist -- DONE
+# Vanish support -- DONE
 # Implement hover text -- DONE
+#
+# Implement join sounds -- done in config
+# Commands on join/first join/leave -- done in config
 #
 #
 silenceJoinLeaveAbovePlayerCount:
@@ -15,15 +14,11 @@ silenceJoinLeaveAbovePlayerCount:
 # Set to something really high if you don't want this feature
   playerCount: 25
 
-# delay in tick (20 ticks = 1 second) before join message is sent
-# in case you have problems with placeholders parsing this can be increased
-joinMessageDelay: 20
-
 # Users with this permission will never send join and leave messages
 silenceJoinLeavePermission: "prismawelcome.silent"
 
 # Check for players that join in vanish mode
-checkVanishPlaceholders:
+checkVanish:
   enable: false
 # PrismaWelcome will only check players with this permission for vanish join
 # You should give this to all staff with vanish permissions
@@ -37,12 +32,12 @@ checkVanishPlaceholders:
     - "Vanished"
 # Remove or comment out all placeholder checks that you do not use!
   placeholders:
-    - "%essentials_vanished% == yes"
-    - "%supervanish_isvanished% == true"
-    - "%premiumvanish_isvanished% == true"
-    - "%stafffacilities_vanished% == true"
-    - "%protocolvanish_player_is_vanished% == true"
-    - "%simplevanish_vanished% == true"
+    - "%essentials_vanished% matches yes"
+    - "%supervanish_isvanished% matches true"
+    - "%premiumvanish_isvanished% matches true"
+    - "%stafffacilities_vanished% matches true"
+    - "%protocolvanish_player_is_vanished% matches true"
+    - "%simplevanish_vanished% matches true"
 # Players joining into this world will have no join/leave messages
 worldBlacklist:
   - exampleWorld

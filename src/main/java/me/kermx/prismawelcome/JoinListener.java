@@ -13,9 +13,9 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.metadata.MetadataValue;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -88,25 +88,43 @@ public class JoinListener implements Listener {
         handlePlayerEvent(event.getPlayer(), event, "leave");
     }
 
+    private void executeCommands(List<String> commands, Player player){
+        for (String command : commands){
+            String parsedCommand = parsePlaceholders(player, command);
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsedCommand);
+        }
+    }
+
     private boolean shouldSilenceJoinLeave(FileConfiguration config, int currentOnlinePlayers, Player player) {
-        return config.getBoolean("silenceJoinLeaveAbovePlayerCount.enable", false)
-                && currentOnlinePlayers > config.getInt("silenceJoinLeaveAbovePlayerCount.playerCount", 25)
-                || player.hasPermission(config.getString("silenceJoinLeavePermission", "prismawelcome.silent"));
+        boolean silenceAbovePlayerCount = config.getBoolean("silenceJoinLeaveAbovePlayerCount.enable", false)
+                && currentOnlinePlayers > config.getInt("silenceJoinLeaveAbovePlayerCount.playerCount", 25);
+        boolean hasSilentPermission = player.hasPermission(config.getString("silenceJoinLeavePermission", "prismawelcome.silent"));
+
+        boolean shouldSilence = silenceAbovePlayerCount || hasSilentPermission;
+
+        if (config.getBoolean("checkVanish.enable", false) && player.hasPermission(config.getString("checkVanish.permission", "prismawelcome.staff"))) {
+            List<String> placeholders = config.getStringList("checkVanish.placeholders");
+            if (evaluateConditions(player, placeholders)) {
+                    shouldSilence = true;
+            }
+            for (MetadataValue meta : player.getMetadata(config.getString("checkVanish.metadata", "vanished"))){
+                if (meta.asBoolean()){
+                    shouldSilence = true;
+                }
+            }
+        }
+
+         List<String> worldBlacklist = config.getStringList("worldBlacklist");
+        if (worldBlacklist.contains(player.getWorld().getName())){
+            shouldSilence = true;
+        }
+        if (shouldSilence || config.getBoolean("checkVanish.notifyJoiner", false)){
+            player.sendMessage(config.getString("checkVanish.notificationMessage", "You are vanished!"));
+        }
+        return shouldSilence;
     }
 
     private void handleMessage(Player player, FileConfiguration config, String messageType, String formattedMessage){
-
-        /*
-        BaseComponent[] messageComp = TextComponent.fromLegacyText(formattedMessage);
-        ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/help");
-        TextComponent hoverComp = new TextComponent("TESTING!!!");
-        BaseComponent[] hoverCompBuilder = new ComponentBuilder(hoverComp).create();
-        HoverEvent hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT,new Text(hoverCompBuilder));
-
-        for (BaseComponent comp : messageComp){
-            comp.setClickEvent(clickEvent);
-            comp.setHoverEvent(hoverEvent);
-        }*/
 
         List<String> hoverText = config.getStringList("hoverMessages." + messageType + ".hoverText");
         String clickAction = config.getString("hoverMessages." + messageType + ".clickAction");
@@ -116,17 +134,14 @@ public class JoinListener implements Listener {
 
         if (config.getBoolean("hoverMessages." + messageType + ".enable", false) && hoverText != null && !hoverText.isEmpty()){
 
-            TextComponent hoverComponent = new TextComponent();
-
-            // Probably need parse color codes and such for hoverText as a string list and then make this a base component using fromLegacyText in order to get color codes working.
-            // painpainpainpainpainpainpain
+            BaseComponent[] hoverComponentBuilder = new BaseComponent[hoverText.size() * 2 - 1];
 
             for (int i = 0; i < hoverText.size(); i++) {
                 String line = parsePlaceholders(player, hoverText.get(i));
-                hoverComponent.addExtra(new TextComponent(parseHexColorCodes(parseColorCodes(line))));
-
+                line = parseHexColorCodes(parseColorCodes(line));
+                hoverComponentBuilder[i * 2] = new TextComponent(TextComponent.fromLegacyText(line));
                 if (i < hoverText.size() - 1) {
-                    hoverComponent.addExtra(new TextComponent("\n"));
+                    hoverComponentBuilder[i * 2 + 1] = new TextComponent("\n");
                 }
             }
 
@@ -136,7 +151,6 @@ public class JoinListener implements Listener {
                     component.setClickEvent(clickEvent);
                 }
             }
-            BaseComponent[] hoverComponentBuilder = new ComponentBuilder(hoverComponent).create();
             HoverEvent hoverEvent = new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(hoverComponentBuilder));
             for (BaseComponent component : messageComponent){
                 component.setHoverEvent(hoverEvent);
