@@ -5,6 +5,7 @@ import net.md_5.bungee.api.ChatColor;
 import net.md_5.bungee.api.chat.*;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -88,13 +89,6 @@ public class JoinListener implements Listener {
         handlePlayerEvent(event.getPlayer(), event, "leave");
     }
 
-    private void executeCommands(List<String> commands, Player player){
-        for (String command : commands){
-            String parsedCommand = parsePlaceholders(player, command);
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), parsedCommand);
-        }
-    }
-
     private boolean shouldSilenceJoinLeave(FileConfiguration config, int currentOnlinePlayers, Player player) {
         boolean silenceAbovePlayerCount = config.getBoolean("silenceJoinLeaveAbovePlayerCount.enable", false)
                 && currentOnlinePlayers > config.getInt("silenceJoinLeaveAbovePlayerCount.playerCount", 25);
@@ -113,7 +107,6 @@ public class JoinListener implements Listener {
                 }
             }
         }
-
          List<String> worldBlacklist = config.getStringList("worldBlacklist");
         if (worldBlacklist.contains(player.getWorld().getName())){
             shouldSilence = true;
@@ -187,6 +180,50 @@ public class JoinListener implements Listener {
                 actionBarReminder.displayActionBar(onlinePlayers, newPlayer, config);
             }
             handleMessage(player, config, "firstJoin", formattedMessage);
+
+            executeCommands(player, config);
+
+            playSounds(config);
+        }
+    }
+
+    private void executeCommands(Player player, FileConfiguration config) {
+        List<String> commands = config.getStringList("firstJoinMessage.commands");
+        String commandMode = config.getString("firstJoinMessage.commandMode", "all").toLowerCase();
+
+        if (!commands.isEmpty()) {
+            if (commandMode.equals("all")) {
+                for (String command : commands) {
+                    command = command.replace("%player_name%", player.getName());
+
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+                }
+            } else if (commandMode.equals("random")) {
+                Random random = new Random();
+                String randomCommand = commands.get(random.nextInt(commands.size()));
+                randomCommand = randomCommand.replace("%player_name%", player.getName());
+
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(), randomCommand);
+            } else {
+                plugin.getLogger().warning("Invalid commandMode specified in configuration: " + commandMode);
+            }
+        }
+    }
+
+    private void playSounds(FileConfiguration config){
+        String soundName = config.getString("firstJoinMessage.sound.name");
+        float volume = (float) config.getDouble("firstJoinMessage.sound.volume", 1.0);
+        float pitch = (float) config.getDouble("firstJoinMessage.sound.pitch", 1.0);
+
+        Sound sound;
+        try {
+            sound = Sound.valueOf(soundName);
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().warning("Invalid sound name specified in configuration: " + soundName);
+            return;
+        }
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            onlinePlayer.playSound(onlinePlayer.getLocation(), sound, volume, pitch);
         }
     }
 

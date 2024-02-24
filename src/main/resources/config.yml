@@ -1,13 +1,6 @@
-##TO-DO##
-# Fix Hex colors -- DONE
-# World blacklist/whitelist -- DONE
-# Vanish support -- DONE
-# Implement hover text -- DONE
-#
-# Implement join sounds -- done in config
-# Commands on join/first join/leave -- done in config
-#
-#
+# -----------------------------------
+#  Silencing Messages Settings
+# -----------------------------------
 silenceJoinLeaveAbovePlayerCount:
   enable: false
 # The amount of players that must be online to silence join/leave messages
@@ -38,13 +31,18 @@ checkVanish:
     - "%stafffacilities_vanished% matches true"
     - "%protocolvanish_player_is_vanished% matches true"
     - "%simplevanish_vanished% matches true"
+
 # Players joining into this world will have no join/leave messages
 worldBlacklist:
   - exampleWorld
   - exampleWorldAlso
 
+# -----------------------------------
+# Welcome Reward System Settings
+# -----------------------------------
 welcomeRewarding:
   actionBarEnabled: true
+  # You can use the %remaining_time% placeholder to get the remaining seconds
   actionBarReminder: "Welcome new player %player_name% in the next %remaining_time% to get a reward!"
   # Limit to say welcome in seconds
   timeLimit: 30
@@ -61,10 +59,13 @@ welcomeRewarding:
     - eco give %player_name% 100
     - xp give %player_name% 10
 
+# ----------------------------------- #
+# Hover Text Settings
+# ----------------------------------- #
 # Hover messages are messages shown when someone hovers their mouse over join and leave messages in chat
 hoverMessages:
   firstJoin:
-    enable: true
+    enable: false
     hoverText:
       - "&d------------------------------"
       - "Click to welcome &#9b5f7c%player_name%"
@@ -73,7 +74,7 @@ hoverMessages:
     clickAction: "SUGGEST_COMMAND"
     clickValue: "welcome!"
   join:
-    enable: true
+    enable: false
     hoverText:
       - "&#9b5f7c------------------------------"
       - "Name: %player_name%"
@@ -85,7 +86,7 @@ hoverMessages:
     clickAction: "SUGGEST_COMMAND"
     clickValue: "/msg %player_name%"
   leave:
-    enable: true
+    enable: false
     hoverText:
       - "------------------------------"
       - "Name: %player_name%"
@@ -95,8 +96,11 @@ hoverMessages:
       - "Cya later %player_name%"
       - "------------------------------"
     clickAction: "OPEN_URL"
-    clickValue: "https://namemc.com/profile/{player_name}"
+    clickValue: "https://www.youtube.com/watch?v=-50NdPawLVY"
 
+# -----------------------------------
+# First Join Message Settings
+# -----------------------------------
 # DO NOT RENAME firstJoinMessage!
 # This is the message that will be used when a player joins the server for the first time
 firstJoinMessage:
@@ -104,24 +108,30 @@ firstJoinMessage:
     - "&f[&a+&f] &f%player_name% joined the server for the first time!"
     - "&f[&a+&f] &f%player_name% is a new player!"
     - "&f[&a+&f] &fWelcome %player_name% to the server!"
-  sound: ""
+  sound:
+    name: ENTITY_EXPERIENCE_ORB_PICKUP
+    volume: 1.0
+    pitch: 1.0
+  commandMode: all #random|all
   commands:
-    - "eco give %player% 10"
+    - "eco give %player_name% 10"
+    - "give %player_name% emerald 1"
 
-
+# -----------------------------------
+# Default Join/Leave Messages Settings
+# -----------------------------------
 # DO NOT RENAME defaultMessage!
 # This is the message that will be used if the player has no other join/leave messages available to them
 defaultMessage:
   messages:
     join:
-      - "&f[&a+&f] &f%player_name% &#9b5f7cTesting colors"
+      - "&f[&a+&f] &f%player_name%"
     leave:
-      - "&f[&c-&f] &f%player_name% &#9b5f7cTesting colors"
-    sounds:
-      join: ""
-      leave: ""
-    commands: []
+      - "&f[&c-&f] &f%player_name%"
 
+# -----------------------------------
+# Custom Join/Leave Messages Settings
+# -----------------------------------
 customMessages:
 # The example join/leave message requires players to have the "welcome.example" permission
 # You can set permissions to whatever you want! ex. "wow.a.cool.permission" or "group.mod"
@@ -136,10 +146,6 @@ customMessages:
       leave:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! Cya later!"
         - "&f[&c-&f] &eBye, &b%player_name%&e!"
-    sounds:
-      join: ""
-      leave: ""
-    commands: []
     permission: welcome.example
     placeholders: []
 
@@ -150,10 +156,6 @@ customMessages:
         - "&f[&a+&f] &eHello, &b%player_name%&e! This is a &#43FBA8hex color message."
       leave:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! This is a &#43FBA8hex color message."
-    sounds:
-      join: ""
-      leave: ""
-    commands: []
     permission: welcome.hexcolorexample
     placeholders: []
 
@@ -172,10 +174,6 @@ customMessages:
         - "&f[&a+&f] &eHello, &b%player_name%&e! BOTH."
       leave:
         - "&f[&c-&f] &eGoodbye, &b%player_name%&e! BOTH."
-    sounds:
-      join: ""
-      leave: ""
-    commands: []
     permission: welcome.exampleboth
     placeholders:
       - "%player_health% >= 19"
@@ -188,10 +186,6 @@ customMessages:
         - "&f[&a+&f] &eHello, &b%player_name%&e! You have more than 2 health and less than 18 and your name is KermX!"
       leave:
         - "&f[&c-&f] &eBye, &b%player_name%&e!"
-    sounds:
-      join: ""
-      leave: ""
-    commands: []
     permission: ""
     placeholders:
       - "%player_health% > 2"
@@ -199,6 +193,9 @@ customMessages:
       - "%player_name% matches KermX"
 
 
+# -----------------------------------
+# Fist Join MOTD Settings
+# -----------------------------------
 # MOTD is a message that is sent only to the player that joins the server
 # In this section you can have multiple lines for each motd.
 firstJoinMOTD:
@@ -206,12 +203,18 @@ firstJoinMOTD:
     - "&fHello &f%player_name% welcome to our server!"
     - "&fUse /help to receive help."
 
+# -----------------------------------
+# Default MOTD Settings
+# -----------------------------------
 # This is the message that will be used if the player has no other MOTD messages available to them
 defaultMOTD:
   message:
     - "&eWelcome back &f%player_name%! Your balance is %vault_eco_balance_formatted%"
     - "&eThis is a second line!"
 
+# -----------------------------------
+# Custom MOTD Settings
+# -----------------------------------
 # MOTD is a message that is sent to the player that joins the server
 customMOTDs:
   example:
