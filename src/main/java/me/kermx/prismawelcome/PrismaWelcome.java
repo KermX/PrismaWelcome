@@ -5,9 +5,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PrismaWelcome extends JavaPlugin {
 
+    private ConfigUtil configUtil;
+
     @Override
     public void onEnable() {
         setupConfig();
+        loadConfigurations();
         registerEvents();
         registerCommands();
 
@@ -29,6 +32,11 @@ public final class PrismaWelcome extends JavaPlugin {
         saveDefaultConfig();
     }
 
+    private void loadConfigurations(){
+        configUtil = new ConfigUtil();
+        configUtil.loadConfig();
+    }
+
     private void registerEvents() {
         getServer().getPluginManager().registerEvents(new JoinListener(), this);
     }
@@ -40,5 +48,9 @@ public final class PrismaWelcome extends JavaPlugin {
 
     public FileConfiguration getPluginConfig() {
         return getConfig();
+    }
+
+    public ConfigUtil getConfigUtil(){
+        return configUtil;
     }
 }

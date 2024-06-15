@@ -45,7 +45,11 @@ public class WelcomeRewardSystem {
         if ("random".equalsIgnoreCase(rewardMode)) {
             executeRandomReward(player);
         } else if ("all".equalsIgnoreCase(rewardMode)) {
-            executeAllRewards(player);
+            try {
+                executeAllRewards(player);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 

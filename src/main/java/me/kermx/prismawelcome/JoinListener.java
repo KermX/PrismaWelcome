@@ -6,7 +6,6 @@ import net.md_5.bungee.api.chat.*;
 import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -19,33 +18,32 @@ import org.bukkit.metadata.MetadataValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class JoinListener implements Listener {
-
     private final WelcomeRewardSystem welcomeRewardSystem;
     private final ActionBarReminder actionBarReminder;
+    private final GenUtil genUtil;
     private Player newPlayer;
     private final PrismaWelcome plugin;
-    private static final Pattern HEX_COLOR_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
     private static final Random random = new Random();
 
     public JoinListener() {
         plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
-        FileConfiguration config = plugin.getPluginConfig();
-        welcomeRewardSystem = loadWelcomeRewardSystem(config);
-        actionBarReminder = new ActionBarReminder(plugin, welcomeRewardSystem);
+        genUtil = new GenUtil();
+        welcomeRewardSystem = new WelcomeRewardSystem(
+                plugin,
+                plugin.getConfigUtil().WRTimeLimit,
+                plugin.getConfigUtil().WRAcceptedWelcomes,
+                plugin.getConfigUtil().WRRewardMode,
+                plugin.getConfigUtil().WRWelcomeRewards
+        );
+        this.actionBarReminder = new ActionBarReminder(plugin, welcomeRewardSystem);
     }
 
-    private WelcomeRewardSystem loadWelcomeRewardSystem(FileConfiguration config) {
-        int timeLimit = config.getInt("welcomeRewarding.timeLimit", 30);
-        List<String> acceptedWelcomes = config.getStringList("welcomeRewarding.acceptedWelcomes");
-        String rewardMode = config.getString("welcomeRewarding.rewardMode", "random");
-        List<String> welcomeRewards = config.getStringList("welcomeRewarding.welcomeRewards");
-
-        return new WelcomeRewardSystem(plugin, timeLimit, acceptedWelcomes, rewardMode, welcomeRewards);
+    private void runWithDelay(Runnable task, long delayTicks) {
+        Bukkit.getScheduler().runTaskLater(plugin, task, delayTicks);
     }
 
     @EventHandler
@@ -60,86 +58,103 @@ public class JoinListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        FileConfiguration config = plugin.getPluginConfig();
-        int currentOnlinePlayers = Bukkit.getOnlinePlayers().size();
+        event.setJoinMessage(null);
+        runWithDelay(() -> {
+            Player player = event.getPlayer();
+            int currentOnlinePlayers = Bukkit.getOnlinePlayers().size();
 
-        if (shouldSilenceJoinLeave(config, currentOnlinePlayers, player)) {
-            event.setJoinMessage(null);
-            return;
-        }
+            if (shouldSilenceJoinLeave(currentOnlinePlayers, player)) {
+                return;
+            }
 
-        if (!player.hasPlayedBefore()) {
-            handleFirstJoin(player, event, config, currentOnlinePlayers);
-        } else {
-            handleRegularJoin(player, event, config, currentOnlinePlayers);
-        }
+            if (!player.hasPlayedBefore()) {
+                handleFirstJoin(player, event, currentOnlinePlayers);
+            } else {
+                handleRegularJoin(player, event, currentOnlinePlayers);
+            }
+        }, 5L );
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        FileConfiguration config = plugin.getPluginConfig();
+        event.setQuitMessage(null);
         int currentOnlinePlayers = Bukkit.getOnlinePlayers().size();
 
-        if (shouldSilenceJoinLeave(config, currentOnlinePlayers, event.getPlayer())) {
-            event.setQuitMessage(null);
+        if (shouldSilenceJoinLeave(currentOnlinePlayers, event.getPlayer())) {
             return;
         }
 
         handlePlayerEvent(event.getPlayer(), event, "leave");
     }
 
-    private boolean shouldSilenceJoinLeave(FileConfiguration config, int currentOnlinePlayers, Player player) {
-        boolean silenceAbovePlayerCount = config.getBoolean("silenceJoinLeaveAbovePlayerCount.enable", false)
-                && currentOnlinePlayers > config.getInt("silenceJoinLeaveAbovePlayerCount.playerCount", 25);
-        boolean hasSilentPermission = player.hasPermission(config.getString("silenceJoinLeavePermission", "prismawelcome.silent"));
+    private boolean shouldSilenceJoinLeave(int currentOnlinePlayers, Player player) {
+        boolean silenceAbovePlayerCount = plugin.getConfigUtil().enableSJLAPC &&
+                currentOnlinePlayers > plugin.getConfigUtil().playerCountSJLAPC;
+        boolean hasSilentPermission = player.hasPermission(plugin.getConfigUtil().silenceJoinLeavePermission);
 
         boolean shouldSilence = silenceAbovePlayerCount || hasSilentPermission;
 
-        if (config.getBoolean("checkVanish.enable", false) && player.hasPermission(config.getString("checkVanish.permission", "prismawelcome.staff"))) {
-            List<String> placeholders = config.getStringList("checkVanish.placeholders");
-            if (evaluateConditions(player, placeholders)) {
-                    shouldSilence = true;
-            }
-            for (MetadataValue meta : player.getMetadata(config.getString("checkVanish.metadata", "vanished"))){
-                if (meta.asBoolean()){
-                    shouldSilence = true;
-                }
+
+        if (plugin.getConfigUtil().enableCheckVanish && player.hasPermission(plugin.getConfigUtil().checkVanishPermission)) {
+            boolean hasVanishMetadata = plugin.getConfigUtil().vanishJoinMetadata.stream()
+                    .anyMatch(key -> player.hasMetadata(key) && player.getMetadata(key).stream().anyMatch(MetadataValue::asBoolean));
+            if (hasVanishMetadata || plugin.getConfigUtil().vanishJoinPlaceholders.stream().anyMatch(player::hasPermission)) {
+                shouldSilence = true;
             }
         }
-         List<String> worldBlacklist = config.getStringList("worldBlacklist");
-        if (worldBlacklist.contains(player.getWorld().getName())){
+        if (plugin.getConfigUtil().worldBlacklist.contains(player.getWorld().getName())) {
             shouldSilence = true;
         }
-        if (shouldSilence || config.getBoolean("checkVanish.notifyJoiner", false)){
-            player.sendMessage(config.getString("checkVanish.notificationMessage", "You are vanished!"));
+
+        if (plugin.getConfigUtil().enableNotifyVanishJoiner) {
+            player.sendMessage(plugin.getConfigUtil().vanishJoinNotificationMessage);
         }
+
         return shouldSilence;
     }
 
-    private void handleMessage(Player player, FileConfiguration config, String messageType, String formattedMessage){
+    private void handleMessage(Player player, String messageType, String formattedMessage){
 
-        List<String> hoverText = config.getStringList("hoverMessages." + messageType + ".hoverText");
-        String clickAction = config.getString("hoverMessages." + messageType + ".clickAction");
-        String clickValue = config.getString("hoverMessages." + messageType + ".clickValue");
+        List<String> hoverText = null;
+        String clickAction = null;
+        String clickValue = null;
+
+        switch (messageType){
+            case "firstJoin":
+                hoverText = plugin.getConfigUtil().FJHMText;
+                clickAction = plugin.getConfigUtil().FJHMClickAction;
+                clickValue = plugin.getConfigUtil().FJHMClickValue;
+                break;
+            case "join":
+                hoverText = plugin.getConfigUtil().JHMText;
+                clickAction = plugin.getConfigUtil().JHMClickAction;
+                clickValue = plugin.getConfigUtil().JHMClickValue;
+                break;
+            case "leave":
+                hoverText = plugin.getConfigUtil().LHMText;
+                clickAction = plugin.getConfigUtil().LHMClickAction;
+                clickValue = plugin.getConfigUtil().LHMClickValue;
+                break;
+            default:
+                break;
+        }
 
         BaseComponent[] messageComponent = TextComponent.fromLegacyText(formattedMessage);
 
-        if (config.getBoolean("hoverMessages." + messageType + ".enable", false) && hoverText != null && !hoverText.isEmpty()){
-
+        if (hoverText != null && !hoverText.isEmpty()){
             BaseComponent[] hoverComponentBuilder = new BaseComponent[hoverText.size() * 2 - 1];
 
             for (int i = 0; i < hoverText.size(); i++) {
                 String line = parsePlaceholders(player, hoverText.get(i));
-                line = parseHexColorCodes(parseColorCodes(line));
+                line = genUtil.parseHexColorCodes(genUtil.parseColorCodes(line));
                 hoverComponentBuilder[i * 2] = new TextComponent(TextComponent.fromLegacyText(line));
                 if (i < hoverText.size() - 1) {
                     hoverComponentBuilder[i * 2 + 1] = new TextComponent("\n");
                 }
             }
 
-            if (clickAction != null && !clickAction.equals("NONE")) {
-                ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.valueOf(clickAction.toUpperCase()), clickValue);
+            if (!"NONE".equals(clickAction)) {
+                ClickEvent clickEvent = new ClickEvent(ClickEvent.Action.valueOf(clickAction.toUpperCase()), parsePlaceholders(player,clickValue));
                 for (BaseComponent component : messageComponent){
                     component.setClickEvent(clickEvent);
                 }
@@ -158,51 +173,48 @@ public class JoinListener implements Listener {
         return PlaceholderAPI.setPlaceholders(player, text);
     }
 
-    private void handleFirstJoin(Player player, PlayerJoinEvent event, FileConfiguration config, int currentOnlinePlayers) {
-        List<String> firstJoinMessage = config.getStringList("firstJoinMessage.messages");
+    private void handleFirstJoin(Player player, PlayerJoinEvent event, int currentOnlinePlayers) {
+        List<String> firstJoinMessage = plugin.getConfigUtil().FJMessages;
 
         if (!firstJoinMessage.isEmpty()) {
-            handleSilentJoinLeave(event, config, currentOnlinePlayers);
+            handleSilentJoinLeave(event, currentOnlinePlayers);
 
             String formattedMessage = parseMessages(firstJoinMessage, player);
             event.setJoinMessage(null);
 
-            handleMOTD(player, config.getStringList("firstJoinMOTD.message"));
+            handleMOTD(player, plugin.getConfigUtil().FJMOTD);
 
             newPlayer = player;
             Bukkit.getScheduler().runTaskLater(plugin, () -> newPlayer = null, 20L * welcomeRewardSystem.getTimeLimit());
 
-            if (config.getBoolean("welcomeRewarding.actionBarEnabled", false)) {
+            if (plugin.getConfigUtil().WRActionBarEnabled) {
                 List<Player> onlinePlayers = Bukkit.getOnlinePlayers().stream()
                         .filter(p -> p != newPlayer)
                         .collect(Collectors.toList());
 
-                actionBarReminder.displayActionBar(onlinePlayers, newPlayer, config);
+                actionBarReminder.displayActionBar(onlinePlayers, newPlayer);
             }
-            handleMessage(player, config, "firstJoin", formattedMessage);
+            handleMessage(player, "firstJoin", formattedMessage);
 
-            executeCommands(player, config);
+            executeCommands(player);
 
-            playSounds(config);
+            playSounds();
         }
     }
 
-    private void executeCommands(Player player, FileConfiguration config) {
-        List<String> commands = config.getStringList("firstJoinMessage.commands");
-        String commandMode = config.getString("firstJoinMessage.commandMode", "all").toLowerCase();
+    private void executeCommands(Player player) {
+        List<String> commands = plugin.getConfigUtil().FJCommands;
+        String commandMode = plugin.getConfigUtil().FJCommandMode;
 
         if (!commands.isEmpty()) {
-            if (commandMode.equals("all")) {
+            if ("all".equalsIgnoreCase(commandMode)) {
                 for (String command : commands) {
                     command = command.replace("%player_name%", player.getName());
-
                     Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
                 }
-            } else if (commandMode.equals("random")) {
-                Random random = new Random();
+            } else if ("random".equalsIgnoreCase(commandMode)) {
                 String randomCommand = commands.get(random.nextInt(commands.size()));
                 randomCommand = randomCommand.replace("%player_name%", player.getName());
-
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), randomCommand);
             } else {
                 plugin.getLogger().warning("Invalid commandMode specified in configuration: " + commandMode);
@@ -210,10 +222,10 @@ public class JoinListener implements Listener {
         }
     }
 
-    private void playSounds(FileConfiguration config){
-        String soundName = config.getString("firstJoinMessage.sound.name");
-        float volume = (float) config.getDouble("firstJoinMessage.sound.volume", 1.0);
-        float pitch = (float) config.getDouble("firstJoinMessage.sound.pitch", 1.0);
+    private void playSounds() {
+        String soundName = plugin.getConfigUtil().FJSoundName;
+        float volume = plugin.getConfigUtil().FJSoundVolume;
+        float pitch = plugin.getConfigUtil().FJSoundPitch;
 
         Sound sound;
         try {
@@ -227,14 +239,14 @@ public class JoinListener implements Listener {
         }
     }
 
-    private void handleRegularJoin(Player player, PlayerJoinEvent event, FileConfiguration config, int currentOnlinePlayers) {
-        handleSilentJoinLeave(event, config, currentOnlinePlayers);
+    private void handleRegularJoin(Player player, PlayerJoinEvent event, int currentOnlinePlayers) {
+        handleSilentJoinLeave(event, currentOnlinePlayers);
         handlePlayerEvent(player, event, "join");
-        handleRandomCustomMOTD(player, config);
+        handleRandomCustomMOTD(player);
     }
 
-    private void handleSilentJoinLeave(PlayerEvent event, FileConfiguration config, int currentOnlinePlayers) {
-        if (shouldSilenceJoinLeave(config, currentOnlinePlayers, event.getPlayer())) {
+    private void handleSilentJoinLeave(PlayerEvent event, int currentOnlinePlayers) {
+        if (shouldSilenceJoinLeave(currentOnlinePlayers, event.getPlayer())) {
             if (event instanceof PlayerJoinEvent) {
                 ((PlayerJoinEvent) event).setJoinMessage(null);
             } else if (event instanceof PlayerQuitEvent) {
@@ -243,92 +255,73 @@ public class JoinListener implements Listener {
         }
     }
 
-    private String parseColorCodes(String message) {
-        return ChatColor.translateAlternateColorCodes('&', message);
-    }
-
-    private String parseHexColorCodes(String message) {
-        Matcher matcher = HEX_COLOR_PATTERN.matcher(message);
-
-        StringBuffer result = new StringBuffer();
-        while (matcher.find()) {
-            String hexColor = matcher.group(1);
-            ChatColor color = ChatColor.of("#" + hexColor);
-            matcher.appendReplacement(result, color.toString());
-        }
-        matcher.appendTail(result);
-
-        return result.toString();
-    }
-
     private void handlePlayerEvent(Player player, PlayerEvent event, String eventType) {
-        PrismaWelcome plugin = PrismaWelcome.getPlugin(PrismaWelcome.class);
-        FileConfiguration config = plugin.getPluginConfig();
-
-        List<String> customMessages = getCustomMessages(player, config, eventType);
+        List<String> customMessages = getCustomMessages(player, eventType);
         String formattedMessage = parseMessages(customMessages, player);
 
         if (event instanceof PlayerJoinEvent) {
             ((PlayerJoinEvent) event).setJoinMessage(null);
-            handleMessage(player, config, "join", formattedMessage);
+            handleMessage(player, "join", formattedMessage);
         } else if (event instanceof PlayerQuitEvent) {
             ((PlayerQuitEvent) event).setQuitMessage(null);
-            handleMessage(player, config, "leave", formattedMessage);
+            handleMessage(player, "leave", formattedMessage);
         }
     }
 
 
     private String parseMessages(List<String> messages, Player player) {
         String message = getRandomMessage(messages);
-        return parseHexColorCodes(parseColorCodes(PlaceholderAPI.setPlaceholders(player, message)));
+        return genUtil.parseHexColorCodes(genUtil.parseColorCodes(PlaceholderAPI.setPlaceholders(player, message)));
     }
 
 
-    private List<String> getCustomMessages(Player player, FileConfiguration config, String messageType) {
+    private List<String> getCustomMessages(Player player, String messageType) {
         List<String> customMessages = new ArrayList<>();
+        Set<String> keys = plugin.getConfigUtil().getCustomMessagesKeys();
 
-        for (String key : config.getConfigurationSection("customMessages").getKeys(false)) {
-            String permissionNode = config.getString("customMessages." + key + ".permission");
-            List<String> conditionList = config.getStringList("customMessages." + key + ".placeholders");
+        for (String key : keys) {
+            String permissionNode = plugin.getConfigUtil().getPermissionNodeForCustomMessage(key);
+            List<String> conditionList = plugin.getConfigUtil().getPlaceholdersForCustomMessage(key);
 
             // Check if permissionNode is not specified or the player has the permission
             boolean hasPermission = permissionNode == null || permissionNode.isEmpty() || player.hasPermission(permissionNode);
 
             // Check if conditionList is empty or player meets the conditions
-            boolean shouldIncludeMessages = hasPermission && evaluateConditions(player, conditionList);
+            boolean shouldIncludeMessages = hasPermission && genUtil.evaluateConditions(player, conditionList);
 
             if (shouldIncludeMessages) {
-                List<String> messagesToAdd = config.getStringList("customMessages." + key + ".messages." + messageType);
+                List<String> messagesToAdd = plugin.getConfigUtil().getCustomMessages(key, messageType);
                 customMessages.addAll(messagesToAdd);
             }
         }
         if (customMessages.isEmpty()) {
-            customMessages.addAll(config.getStringList("defaultMessage.messages." + messageType));
+            customMessages.addAll(plugin.getConfigUtil().getDefaultMessages(messageType));
         }
         return customMessages;
     }
 
-    private void handleRandomCustomMOTD(Player player, FileConfiguration config) {
-        List<String> accessibleMOTDs = getAccessibleCustomMOTDs(player, config);
+    private void handleRandomCustomMOTD(Player player) {
+        List<String> accessibleMOTDs = getAccessibleCustomMOTDs(player);
         if (accessibleMOTDs.isEmpty()) {
-            handleMOTD(player, config.getStringList("defaultMOTD.message"));
+            handleMOTD(player, plugin.getConfigUtil().getDefaultMOTD());
         } else {
             String randomMOTDKey = accessibleMOTDs.get(new Random().nextInt(accessibleMOTDs.size()));
-            List<String> motdMessages = config.getStringList("customMOTDs." + randomMOTDKey + ".message");
+            List<String> motdMessages = plugin.getConfigUtil().getCustomMOTD(randomMOTDKey);
             handleMOTD(player, motdMessages);
         }
     }
 
-    private List<String> getAccessibleCustomMOTDs(Player player, FileConfiguration config) {
+    private List<String> getAccessibleCustomMOTDs(Player player) {
         List<String> accessibleMOTDs = new ArrayList<>();
+        Set<String> keys = plugin.getConfigUtil().getCustomMOTDsKeys();
 
-        for (String key : config.getConfigurationSection("customMOTDs").getKeys(false)) {
-            String permissionNode = config.getString("customMOTDs." + key + ".permission");
-            List<String> conditionList = config.getStringList("customMOTDs." + key + ".placeholders");
+        for (String key : keys) {
+            String permissionNode = plugin.getConfigUtil().getPermissionNodeForCustomMOTD(key);
+            List<String> conditionList = plugin.getConfigUtil().getPlaceholdersForCustomMOTD(key);
 
             boolean hasPermission = permissionNode == null || permissionNode.isEmpty() || player.hasPermission(permissionNode);
 
-            boolean shouldDisplayMOTD = hasPermission && evaluateConditions(player, conditionList);
+            boolean shouldDisplayMOTD = hasPermission && genUtil.evaluateConditions(player, conditionList);
 
             if (shouldDisplayMOTD) {
                 accessibleMOTDs.add(key);
@@ -339,64 +332,7 @@ public class JoinListener implements Listener {
 
     private void handleMOTD(Player player, List<String> motdMessages) {
         for (String line : motdMessages) {
-            player.sendMessage(parseHexColorCodes(parseColorCodes(PlaceholderAPI.setPlaceholders(player, line))));
-        }
-    }
-
-    private boolean evaluateConditions(Player player, List<String> conditionList) {
-        if (conditionList == null || conditionList.isEmpty()) {
-            return true;
-        }
-
-        for (String condition : conditionList) {
-            String[] parts = condition.split(" ", 3);
-
-            if (parts.length == 3) {
-                String placeholder = parts[0];
-                String operator = parts[1];
-                String value = parts[2];
-
-                String placeholderValue = PlaceholderAPI.setPlaceholders(player, placeholder);
-                String valueValue = PlaceholderAPI.setPlaceholders(player, value);
-
-                if (!evaluateCondition(placeholderValue, operator, valueValue)) {
-                    return false; // If any condition is not satisfied, return false
-                }
-            }
-        }
-        return true; // All conditions are satisfied
-    }
-
-    private boolean evaluateCondition(String placeholder, String operator, String value) {
-
-        switch (operator) {
-            case "==":
-                return placeholder.equals(value);
-            case ">=":
-                return compareNumbers(placeholder, value) >= 0;
-            case "<=":
-                return compareNumbers(placeholder, value) <= 0;
-            case ">":
-                return compareNumbers(placeholder, value) > 0;
-            case "<":
-                return compareNumbers(placeholder, value) < 0;
-            case "matches":
-                return placeholder.matches(value);
-            case "contains":
-                return placeholder.contains(value);
-            default:
-                return false;
-        }
-    }
-
-    private int compareNumbers(String placeholder, String value) {
-        try {
-            double placeholderValue = Double.parseDouble(placeholder);
-            double valueValue = Double.parseDouble(value);
-            return Double.compare(placeholderValue, valueValue);
-        } catch (NumberFormatException e) {
-            e.printStackTrace();
-            return 0;
+            player.sendMessage(genUtil.parseHexColorCodes(genUtil.parseColorCodes(PlaceholderAPI.setPlaceholders(player, line))));
         }
     }
 
